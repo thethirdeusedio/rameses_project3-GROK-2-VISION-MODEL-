@@ -1,7 +1,6 @@
 import os
 import openai
 import json
-import re
 import signal
 import sys
 from fastapi import FastAPI, File, UploadFile, Form
@@ -35,7 +34,7 @@ signal.signal(signal.SIGTERM, signal_handler)
 # Load OpenRouter API Key
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 if not OPENROUTER_API_KEY:
-    raise ValueError("❌ OpenRouter API Key is missing. Set it as an environment variable.")
+    raise ValueError("❌ OpenRouter API Key is missing.")
 
 # Initialize OpenRouter Client
 client = openai.OpenAI(
@@ -102,22 +101,25 @@ def process_with_ai(extracted_text, model_prompt=None):
         print(f"OpenRouter API Error: {e}")
         return {"error": str(e)}
 
-# Health check endpoint
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    return JSONResponse(
+        content={"status": "ok"},
+        headers={"Access-Control-Allow-Origin": "https://ramesesdocumentprocessor.netlify.app"}
+    )
 
-# Main endpoint
 @app.post("/get-structured-json/")
 async def get_structured_json(file: UploadFile = File(...), model_prompt: str = Form(None)):
+    print("🔹 Received POST request")
     try:
-        print("🔹 Starting file processing...")
+        print("🔹 Reading file...")
         file_bytes = await file.read()
         print("🔹 File read successfully")
         filename = file.filename.lower()
         extracted_text = ""
 
         if filename.endswith(".pdf"):
+            print("🔹 Converting PDF...")
             images = convert_from_bytes(file_bytes)[:1]  # Limit to 1 page
             for i, img in enumerate(images):
                 image_id = f"{os.path.splitext(filename)[0]}_page_{i+1}"
@@ -127,6 +129,7 @@ async def get_structured_json(file: UploadFile = File(...), model_prompt: str = 
             image_id = os.path.splitext(filename)[0]
             extracted_text = extract_text_from_image(image, image_id)
         else:
+            print("🔹 Unsupported file type")
             return JSONResponse(
                 content={"error": "Unsupported file type. Please upload a PDF, PNG, JPG, or JPEG."},
                 headers={"Access-Control-Allow-Origin": "https://ramesesdocumentprocessor.netlify.app"}
@@ -150,7 +153,7 @@ async def get_structured_json(file: UploadFile = File(...), model_prompt: str = 
         )
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"🔹 Error in processing: {e}")
         return JSONResponse(
             content={"error": str(e)},
             headers={"Access-Control-Allow-Origin": "https://ramesesdocumentprocessor.netlify.app"}

@@ -3,6 +3,7 @@ import openai
 import json
 import signal
 import sys
+import psutil
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -48,12 +49,25 @@ def get_ocr():
     global ocr
     if ocr is None:
         print("🔹 Initializing PaddleOCR...")
-        ocr = PaddleOCR(use_angle_cls=True, lang="en", use_gpu=False)
+        print(f"🔹 Memory before OCR init: {psutil.virtual_memory().percent}%")
+        ocr = PaddleOCR(use_angle_cls=True, lang="en", use_gpu=False, det_limit_side_len=960)
+        print(f"🔹 Memory after OCR init: {psutil.virtual_memory().percent}%")
     return ocr
 
-# Enhance image
-def enhance_image(image):
+# Resize and enhance image
+def preprocess_image(image):
     try:
+        # Resize to max 960px on longest side
+        max_size = 960
+        width, height = image.size
+        if max(width, height) > max_size:
+            scale = max_size / max(width, height)
+            new_width = int(width * scale)
+            new_height = int(height * scale)
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            print(f"🔹 Resized image to {new_width}x{new_height}")
+
+        # Enhance
         img = np.array(image)
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -63,17 +77,20 @@ def enhance_image(image):
         )
         return Image.fromarray(cv2.cvtColor(binary, cv2.COLOR_GRAY2RGB))
     except Exception as e:
-        print(f"Error in image enhancement: {e}")
+        print(f"Error in image preprocessing: {e}")
         return image
 
 # Extract text
 def extract_text_from_image(image, image_id="image"):
     print(f"🔹 Processing image: {image_id}")
-    enhanced_image = enhance_image(image)
+    print(f"🔹 Memory before processing: {psutil.virtual_memory().percent}%")
+    enhanced_image = preprocess_image(image)
     enhanced_image = np.array(enhanced_image)
     ocr_instance = get_ocr()
     result = ocr_instance.ocr(enhanced_image, cls=True)
-    return " ".join([word_info[1][0] for line in result if line for word_info in line]).strip()
+    text = " ".join([word_info[1][0] for line in result if line for word_info in line]).strip()
+    print(f"🔹 Memory after processing: {psutil.virtual_memory().percent}%")
+    return text
 
 # Process with AI
 def process_with_ai(extracted_text, model_prompt=None):
@@ -95,7 +112,7 @@ def process_with_ai(extracted_text, model_prompt=None):
             max_tokens=800
         )
         structured_data = response.choices[0].message.content.strip()
-        structured_data = response.sub(r"```json\n(.*?)\n```", r"\1", structured_data, flags=response.DOTALL).strip()
+        structured_data = re.sub(r"```json\n(.*?)\n```", r"\1", structured_data, flags=re.DOTALL).strip()
         structured_data = json.loads(structured_data)
         print("🔹 AI processing complete")
         return {"data": structured_data, "prompt_used": system_prompt}

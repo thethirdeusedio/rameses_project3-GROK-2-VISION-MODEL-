@@ -4,7 +4,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- <title>Document Processor</title> -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -159,7 +158,6 @@
             color: #ccc;
         }
 
-        /* New styles for prompt section */
         #prompt-section {
             margin-top: 20px;
         }
@@ -178,13 +176,7 @@
 
 <body>
     <div id="upload-section">
-        <!-- <h1>Document Processor</h1> -->
         <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg">
-        <!-- <div id="prompt-section">
-            <h2>Model Prompt</h2>
-            <textarea
-                id="model-prompt">Convert this text to a JSON array with objects containing key-value pairs {transaction_code,arp_no,pin,owner,survey_no,lot_no,no_or_street,brgy,municipality,province}. Return only the JSON array.</textarea>
-        </div> -->
         <button onclick="processFile()">Process File</button>
         <div id="error-message" class="error"></div>
     </div>
@@ -217,7 +209,11 @@
         <img id="modal-image" class="modal-content" alt="Maximized preview">
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.min.js"></script>
     <script>
+        // Fix pdf.js worker source
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.worker.min.js';
+
         let rawText = '';
         let jsonResult = null;
         let rawTextInterval, jsonInterval;
@@ -225,16 +221,15 @@
         function processFile() {
             const fileInput = document.getElementById('file-input');
             const file = fileInput.files[0];
-            // const modelPrompt = document.getElementById('model-prompt').value.trim();
 
             if (!file) {
                 showError('Please select a file');
                 return;
             }
-            // if (!modelPrompt) {
-            //     showError('Please enter a model prompt');
-            //     return;
-            // }
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                showError('File too large. Max size is 5MB.');
+                return;
+            }
 
             clearDisplay();
             showError('');
@@ -245,14 +240,15 @@
 
             const formData = new FormData();
             formData.append('file', file);
-            // formData.append('model_prompt', modelPrompt);
 
             fetch('https://rameses-project3-grok-2-vision-model-2.onrender.com/get-structured-json/', {
                 method: 'POST',
                 body: formData
             })
                 .then(response => {
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status} - ${response.statusText}`);
+                    }
                     return response.json();
                 })
                 .then(data => {
@@ -260,24 +256,19 @@
                         showError(data.error);
                         document.getElementById('raw-text').textContent = data.raw_text || '';
                         document.getElementById('json-result').textContent = `Error: ${data.error}\nPrompt Used: ${data.prompt_used || ''}`;
-                        hideLoader('raw-text-loader', 'raw-text-percentage');
-                        hideLoader('json-loader', 'json-percentage');
-                        return;
+                    } else {
+                        rawText = data.raw_text;
+                        jsonResult = data.data;
+                        document.getElementById('raw-text').textContent = rawText;
+                        document.getElementById('json-result').textContent = `Result:\n${JSON.stringify(jsonResult, null, 2)}`;
+                        document.getElementById('download-btn').style.display = 'block';
                     }
-
-                    // `Prompt Used: ${data.prompt_used}\n\n
-
-                    rawText = data.raw_text;
-                    jsonResult = data.data;
-                    document.getElementById('raw-text').textContent = rawText;
-                    document.getElementById('json-result').textContent = `Result:\n${JSON.stringify(jsonResult, null, 2)}`;
-                    document.getElementById('download-btn').style.display = 'block';
                     hideLoader('raw-text-loader', 'raw-text-percentage');
                     hideLoader('json-loader', 'json-percentage');
                 })
                 .catch(error => {
+                    console.error('Fetch error:', error);
                     showError('Error processing file: ' + error.message);
-                    console.error('Fetch error details:', error);
                     hideLoader('raw-text-loader', 'raw-text-percentage');
                     hideLoader('json-loader', 'json-percentage');
                 });
@@ -300,7 +291,7 @@
                     previewContainer.appendChild(img);
                 } else if (file.type === 'application/pdf') {
                     pdfjsLib.getDocument({ data: e.target.result }).promise.then(pdf => {
-                        const numPages = pdf.numPages;
+                        const numPages = Math.min(pdf.numPages, 2); // Limit to 2 pages
                         for (let i = 1; i <= numPages; i++) {
                             pdf.getPage(i).then(page => {
                                 const canvas = document.createElement('canvas');
@@ -402,10 +393,6 @@
             }
         }
     </script>
-    <script>
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.worker.min.js';
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.min.js"></script>
 </body>
 
 </html>

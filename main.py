@@ -94,7 +94,7 @@ def process_with_ai(extracted_text, model_prompt=None):
             max_tokens=800
         )
         structured_data = response.choices[0].message.content.strip()
-        structured_data = re.sub(r"```json\n(.*?)\n```", r"\1", structured_data, flags=re.DOTALL).strip()
+        structured_data = response.sub(r"```json\n(.*?)\n```", r"\1", structured_data, flags=response.DOTALL).strip()
         structured_data = json.loads(structured_data)
         return {"data": structured_data, "prompt_used": system_prompt}
     except Exception as e:

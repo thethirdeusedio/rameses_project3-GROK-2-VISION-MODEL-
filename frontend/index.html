@@ -247,7 +247,7 @@
             formData.append('file', file);
             // formData.append('model_prompt', modelPrompt);
 
-            fetch('http://localhost:8000/get-structured-json/', {
+            fetch('https://rameses-project3.onrender.com/get-structured-json/', {
                 method: 'POST',
                 body: formData
             })

@@ -35,7 +35,7 @@ client = openai.OpenAI(
 )
 
 # Initialize PaddleOCR
-ocr = PaddleOCR(use_angle_cls=True, lang="en", use_gpu=True)
+ocr = PaddleOCR(use_angle_cls=True, lang="en", use_gpu=False)
 
 # Create directory for saving enhanced images (optional, for debugging)
 OUTPUT_DIR = "./enhanced_images"

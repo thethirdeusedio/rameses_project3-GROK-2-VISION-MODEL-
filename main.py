@@ -68,7 +68,12 @@ def process_with_ai(extracted_text, model_prompt=None):
             temperature=0.2,
             max_tokens=800
         )
-        structured_data = response.choices[0].message.content.strip()
+        # Log raw response for debugging
+        raw_content = response.choices[0].message.content
+        print(f"🔹 Raw OpenRouter Response: {raw_content}")
+        
+        # Clean and parse
+        structured_data = raw_content.strip()
         structured_data = response.sub(r"```json\n(.*?)\n```", r"\1", structured_data, flags=response.DOTALL).strip()
         structured_data = json.loads(structured_data)
         print("🔹 AI processing complete")

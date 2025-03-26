@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- <title>Document Processor</title> -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        h2 {
+            color: #666;
+            margin-top: 0;
+        }
+
+        #upload-section {
+            text-align: center;
+        }
+
+        #preview-container {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .page-preview {
+            max-width: 100%;
+            margin-bottom: 10px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+        }
+
+        pre {
+            background: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border: 1px solid #ddd;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #file-input {
+            margin: 20px 0;
+        }
+
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+
+        .loader-container {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        .loader-percentage {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            max-width: 90%;
+            max-height: 90vh;
+            margin: auto;
+            display: block;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-btn:hover {
+            color: #ccc;
+        }
+
+        /* New styles for prompt section */
+        #prompt-section {
+            margin-top: 20px;
+        }
+
+        #model-prompt {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+            resize: vertical;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="upload-section">
+        <!-- <h1>Document Processor</h1> -->
+        <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg">
+        <!-- <div id="prompt-section">
+            <h2>Model Prompt</h2>
+            <textarea
+                id="model-prompt">Convert this text to a JSON array with objects containing key-value pairs {transaction_code,arp_no,pin,owner,survey_no,lot_no,no_or_street,brgy,municipality,province}. Return only the JSON array.</textarea>
+        </div> -->
+        <button onclick="processFile()">Process File</button>
+        <div id="error-message" class="error"></div>
+    </div>
+    <div class="container">
+        <div class="section">
+            <h2>Uploaded File Preview</h2>
+            <div id="preview-container"></div>
+        </div>
+        <div class="section">
+            <h2>Raw Text</h2>
+            <pre id="raw-text"></pre>
+            <div id="raw-text-loader" class="loader-container">
+                <div class="loader"></div>
+                <div class="loader-percentage" id="raw-text-percentage">0%</div>
+            </div>
+        </div>
+        <div class="section">
+            <h2>Result</h2>
+            <pre id="json-result"></pre>
+            <div id="json-loader" class="loader-container">
+                <div class="loader"></div>
+                <div class="loader-percentage" id="json-percentage">0%</div>
+            </div>
+            <button id="download-btn" style="display: none;" onclick="downloadJSON()">Download Result</button>
+        </div>
+    </div>
+
+    <div id="image-modal" class="modal">
+        <span class="close-btn" onclick="closeModal()">×</span>
+        <img id="modal-image" class="modal-content" alt="Maximized preview">
+    </div>
+
+    <script>
+        let rawText = '';
+        let jsonResult = null;
+        let rawTextInterval, jsonInterval;
+
+        function processFile() {
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            // const modelPrompt = document.getElementById('model-prompt').value.trim();
+
+            if (!file) {
+                showError('Please select a file');
+                return;
+            }
+            // if (!modelPrompt) {
+            //     showError('Please enter a model prompt');
+            //     return;
+            // }
+
+            clearDisplay();
+            showError('');
+            previewFile(file);
+
+            showLoader('raw-text-loader', 'raw-text-percentage');
+            showLoader('json-loader', 'json-percentage');
+
+            const formData = new FormData();
+            formData.append('file', file);
+            // formData.append('model_prompt', modelPrompt);
+
+            fetch('http://localhost:8000/get-structured-json/', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        showError(data.error);
+                        document.getElementById('raw-text').textContent = data.raw_text || '';
+                        document.getElementById('json-result').textContent = `Error: ${data.error}\nPrompt Used: ${data.prompt_used || ''}`;
+                        hideLoader('raw-text-loader', 'raw-text-percentage');
+                        hideLoader('json-loader', 'json-percentage');
+                        return;
+                    }
+
+                    // `Prompt Used: ${data.prompt_used}\n\n
+
+                    rawText = data.raw_text;
+                    jsonResult = data.data;
+                    document.getElementById('raw-text').textContent = rawText;
+                    document.getElementById('json-result').textContent = `Result:\n${JSON.stringify(jsonResult, null, 2)}`;
+                    document.getElementById('download-btn').style.display = 'block';
+                    hideLoader('raw-text-loader', 'raw-text-percentage');
+                    hideLoader('json-loader', 'json-percentage');
+                })
+                .catch(error => {
+                    showError('Error processing file: ' + error.message);
+                    console.error('Fetch error details:', error);
+                    hideLoader('raw-text-loader', 'raw-text-percentage');
+                    hideLoader('json-loader', 'json-percentage');
+                });
+        }
+
+        function previewFile(file) {
+            const previewContainer = document.getElementById('preview-container');
+            const modalImage = document.getElementById('modal-image');
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                if (file.type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'page-preview';
+                    img.onclick = () => {
+                        modalImage.src = img.src;
+                        maximizeImage();
+                    };
+                    previewContainer.appendChild(img);
+                } else if (file.type === 'application/pdf') {
+                    pdfjsLib.getDocument({ data: e.target.result }).promise.then(pdf => {
+                        const numPages = pdf.numPages;
+                        for (let i = 1; i <= numPages; i++) {
+                            pdf.getPage(i).then(page => {
+                                const canvas = document.createElement('canvas');
+                                const context = canvas.getContext('2d');
+                                const viewport = page.getViewport({ scale: 1.5 });
+                                canvas.height = viewport.height;
+                                canvas.width = viewport.width;
+                                page.render({ canvasContext: context, viewport: viewport }).promise.then(() => {
+                                    const dataUrl = canvas.toDataURL();
+                                    const img = document.createElement('img');
+                                    img.src = dataUrl;
+                                    img.className = 'page-preview';
+                                    img.onclick = () => {
+                                        modalImage.src = dataUrl;
+                                        maximizeImage();
+                                    };
+                                    previewContainer.appendChild(img);
+                                });
+                            });
+                        }
+                    }).catch(error => {
+                        showError('Error rendering PDF: ' + error.message);
+                    });
+                }
+            };
+
+            if (file.type.startsWith('image/')) {
+                reader.readAsDataURL(file);
+            } else if (file.type === 'application/pdf') {
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function maximizeImage() {
+            const modal = document.getElementById('image-modal');
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('image-modal');
+            modal.style.display = 'none';
+        }
+
+        function downloadJSON() {
+            if (!jsonResult) return;
+            const blob = new Blob([JSON.stringify(jsonResult, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'result.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+        }
+
+        function clearDisplay() {
+            document.getElementById('preview-container').innerHTML = '';
+            document.getElementById('raw-text').textContent = '';
+            document.getElementById('json-result').textContent = '';
+            document.getElementById('download-btn').style.display = 'none';
+        }
+
+        function showLoader(loaderId, percentageId) {
+            const loader = document.getElementById(loaderId);
+            const percentage = document.getElementById(percentageId);
+            loader.style.display = 'block';
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress >= 99) progress = 99;
+                percentage.textContent = `${Math.round(progress)}%`;
+            }, 200);
+            if (loaderId === 'raw-text-loader') rawTextInterval = interval;
+            else jsonInterval = interval;
+        }
+
+        function hideLoader(loaderId, percentageId) {
+            const loader = document.getElementById(loaderId);
+            const percentage = document.getElementById(percentageId);
+            percentage.textContent = '100%';
+            setTimeout(() => {
+                loader.style.display = 'none';
+                percentage.textContent = '0%';
+                if (loaderId === 'raw-text-loader' && rawTextInterval) {
+                    clearInterval(rawTextInterval);
+                } else if (loaderId === 'json-loader' && jsonInterval) {
+                    clearInterval(jsonInterval);
+                }
+            }, 300);
+        }
+
+        window.onclick = function (event) {
+            const modal = document.getElementById('image-modal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.min.js"></script>
+</body>
+
+</html>

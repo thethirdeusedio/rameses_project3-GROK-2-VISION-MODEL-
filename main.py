@@ -3,7 +3,7 @@ import openai
 import json
 import signal
 import sys
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pdf2image import convert_from_bytes
@@ -95,7 +95,7 @@ def process_with_ai(extracted_text, model_prompt=None):
             max_tokens=800
         )
         structured_data = response.choices[0].message.content.strip()
-        structured_data = re.sub(r"```json\n(.*?)\n```", r"\1", structured_data, flags=re.DOTALL).strip()
+        structured_data = response.sub(r"```json\n(.*?)\n```", r"\1", structured_data, flags=response.DOTALL).strip()
         structured_data = json.loads(structured_data)
         print("🔹 AI processing complete")
         return {"data": structured_data, "prompt_used": system_prompt}
@@ -110,7 +110,7 @@ async def health_check():
         headers={"Access-Control-Allow-Origin": "https://ramesesdocumentprocessor.netlify.app"}
     )
 
-@app.options("/get-structured-json/")  # Handle CORS preflight
+@app.options("/get-structured-json/")
 async def options_handler():
     return JSONResponse(
         content={},
@@ -128,6 +128,13 @@ async def get_structured_json(file: UploadFile = File(...), model_prompt: str = 
     try:
         print("🔹 Reading file...")
         file_bytes = await file.read()
+        if len(file_bytes) > 2 * 1024 * 1024:  # 2MB limit
+            print("🔹 File too large")
+            return JSONResponse(
+                content={"error": "File too large. Max size is 2MB."},
+                headers={"Access-Control-Allow-Origin": "https://ramesesdocumentprocessor.netlify.app"},
+                status_code=400
+            )
         print("🔹 File read successfully")
         filename = file.filename.lower()
         extracted_text = ""
@@ -147,7 +154,8 @@ async def get_structured_json(file: UploadFile = File(...), model_prompt: str = 
             print("🔹 Unsupported file type")
             return JSONResponse(
                 content={"error": "Unsupported file type. Please upload a PDF, PNG, JPG, or JPEG."},
-                headers={"Access-Control-Allow-Origin": "https://ramesesdocumentprocessor.netlify.app"}
+                headers={"Access-Control-Allow-Origin": "https://ramesesdocumentprocessor.netlify.app"},
+                status_code=400
             )
 
         raw_text = extracted_text.strip()
@@ -170,7 +178,7 @@ async def get_structured_json(file: UploadFile = File(...), model_prompt: str = 
     except Exception as e:
         print(f"🔹 Error in processing: {e}")
         return JSONResponse(
-            content={"error": str(e)},
+            content={"error": f"Server error: {str(e)}"},
             status_code=500,
             headers={"Access-Control-Allow-Origin": "https://ramesesdocumentprocessor.netlify.app"}
         )

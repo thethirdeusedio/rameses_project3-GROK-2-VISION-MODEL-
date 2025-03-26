@@ -2,8 +2,8 @@ fastapi==0.115.9
 uvicorn==0.34.0
 openai==1.65.1
 pdf2image==1.17.0
-paddlepaddle==2.6.2
-paddleocr==2.9.1
+paddlepaddle==2.5.2
+paddleocr==2.8.1
 pillow==11.1.0
 numpy==1.26.4
 opencv-python==4.11.0.86

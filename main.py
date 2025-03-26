@@ -84,6 +84,7 @@ def process_with_ai(extracted_text, model_prompt=None):
     )
     system_prompt = model_prompt if model_prompt else default_prompt
     try:
+        print("🔹 Sending to OpenRouter...")
         response = client.chat.completions.create(
             model="x-ai/grok-2-vision-1212",
             messages=[
@@ -94,8 +95,9 @@ def process_with_ai(extracted_text, model_prompt=None):
             max_tokens=800
         )
         structured_data = response.choices[0].message.content.strip()
-        structured_data = response.sub(r"```json\n(.*?)\n```", r"\1", structured_data, flags=response.DOTALL).strip()
+        structured_data = re.sub(r"```json\n(.*?)\n```", r"\1", structured_data, flags=re.DOTALL).strip()
         structured_data = json.loads(structured_data)
+        print("🔹 AI processing complete")
         return {"data": structured_data, "prompt_used": system_prompt}
     except Exception as e:
         print(f"OpenRouter API Error: {e}")
@@ -106,6 +108,18 @@ async def health_check():
     return JSONResponse(
         content={"status": "ok"},
         headers={"Access-Control-Allow-Origin": "https://ramesesdocumentprocessor.netlify.app"}
+    )
+
+@app.options("/get-structured-json/")  # Handle CORS preflight
+async def options_handler():
+    return JSONResponse(
+        content={},
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "https://ramesesdocumentprocessor.netlify.app",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*"
+        }
     )
 
 @app.post("/get-structured-json/")
@@ -120,11 +134,12 @@ async def get_structured_json(file: UploadFile = File(...), model_prompt: str = 
 
         if filename.endswith(".pdf"):
             print("🔹 Converting PDF...")
-            images = convert_from_bytes(file_bytes)[:1]  # Limit to 1 page
+            images = convert_from_bytes(file_bytes)[:1]
             for i, img in enumerate(images):
                 image_id = f"{os.path.splitext(filename)[0]}_page_{i+1}"
                 extracted_text += extract_text_from_image(img, image_id) + "\n"
         elif filename.endswith((".png", ".jpg", ".jpeg")):
+            print("🔹 Processing image file...")
             image = Image.open(file.file)
             image_id = os.path.splitext(filename)[0]
             extracted_text = extract_text_from_image(image, image_id)
@@ -156,6 +171,7 @@ async def get_structured_json(file: UploadFile = File(...), model_prompt: str = 
         print(f"🔹 Error in processing: {e}")
         return JSONResponse(
             content={"error": str(e)},
+            status_code=500,
             headers={"Access-Control-Allow-Origin": "https://ramesesdocumentprocessor.netlify.app"}
         )
 

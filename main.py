@@ -9,6 +9,8 @@ from paddleocr import PaddleOCR
 from PIL import Image
 import numpy as np
 import cv2
+import signal
+import sys
 
 
 app = FastAPI()
@@ -21,6 +23,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# SIGTERM handler
+def signal_handler(sig, frame):
+    print("🔹 Received SIGTERM, shutting down gracefully")
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, signal_handler)
+
+print("🔹 CORS middleware enabled for https://ramesesdocumentprocessor.netlify.app")
 
 # Load OpenRouter API Key
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -35,7 +46,7 @@ client = openai.OpenAI(
 )
 
 # Initialize PaddleOCR
-ocr = PaddleOCR(use_angle_cls=True, lang="en", use_gpu=False)
+ocr = PaddleOCR(use_angle_cls=True, lang="en", use_gpu=True)
 
 # Create directory for saving enhanced images (optional, for debugging)
 OUTPUT_DIR = "./enhanced_images"

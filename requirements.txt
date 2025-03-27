@@ -5,3 +5,4 @@ pdf2image
 pillow
 psutil
 python-multipart
+pytesseract==0.3.13.

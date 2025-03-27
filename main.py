@@ -4,6 +4,7 @@ import json
 import signal
 import sys
 import psutil
+import pytesseract
 import re
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware

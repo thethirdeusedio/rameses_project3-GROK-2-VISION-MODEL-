@@ -47,7 +47,7 @@ def extract_text_from_image(image, image_id="image"):
     print(f"🔹 Processing image: {image_id}")
     print(f"🔹 Memory before processing: {psutil.virtual_memory().percent}%")
     # Return dummy text to test pipeline
-    text = "transaction_code: ABC123 arp_no: 456 pin: 789 owner: Trixie Kate Espino survey_no: 101 lot_no: 202 no_or_street: Main St brgy: Barangay 1 municipality: City province: Province"
+    text = "Name: Trixie Kate Espino, What: Ex GirlFriend"
     print(f"🔹 Memory after processing: {psutil.virtual_memory().percent}%")
     return text
 
@@ -55,7 +55,7 @@ def extract_text_from_image(image, image_id="image"):
 def process_with_ai(extracted_text, model_prompt=None):
     default_prompt = (
         "Convert this text to a JSON array with objects containing key-value pairs "
-        "{transaction_code,arp_no,pin,owner,survey_no,lot_no,no_or_street,brgy,municipality,province}. "
+        "{Name,What}. "
         "Return only the JSON array."
     )
     system_prompt = model_prompt if model_prompt else default_prompt

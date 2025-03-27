@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: rameses-project3
+    runtime: python
+    repo: https://github.com/thethirdeusedio/rameses_project3-GROK-2-VISION-MODEL-.git
+    buildCommand: "apt-get update && apt-get install -y tesseract-ocr && pip install -r requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: OPENROUTER_API_KEY
+        sync: false

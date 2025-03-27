@@ -83,7 +83,7 @@ def extract_and_process_text(image, image_id="image", model_prompt=None):
 
         default_prompt = (
             "Extract all text from the image as raw text. Then, convert this raw text to a JSON array with objects "
-            "containing {name,age,status}. "
+            "containing {date,time,loc,amt,trace_no}. "
             "Return the response in this format: ```raw\n<raw_text>\n```\n```json\n<json_array>\n```"
         )
         system_prompt = model_prompt if model_prompt else default_prompt

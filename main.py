@@ -2,6 +2,7 @@ import os
 import openai
 import json
 import re
+import httpx  # Add this import
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -30,10 +31,11 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 if not OPENROUTER_API_KEY:
     raise ValueError("❌ OpenRouter API Key is missing.")
 
-# Initialize OpenRouter Client
+# Initialize OpenRouter Client with explicit httpx client
 client = openai.OpenAI(
     api_key=OPENROUTER_API_KEY,
-    base_url="https://openrouter.ai/api/v1"
+    base_url="https://openrouter.ai/api/v1",
+    http_client=httpx.Client()  # Explicitly use httpx.Client without proxies
 )
 
 # Preprocess image (no save to disk for Render)
@@ -80,7 +82,7 @@ def extract_and_process_text(image, image_id="image", model_prompt=None):
 
         default_prompt = (
             "Extract all text from the image as raw text. Then, convert this raw text to a JSON array with objects "
-            "containing {name,age,status}. "
+            "containing {transaction_code,arp_no,pin,owner_name,address,title_no,lot_no,td_arp_no,land_ref_owner}. "
             "Return the response in this format: ```raw\n<raw_text>\n```\n```json\n<json_array>\n```"
         )
         system_prompt = model_prompt if model_prompt else default_prompt

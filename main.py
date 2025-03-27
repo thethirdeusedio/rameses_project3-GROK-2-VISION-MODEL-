@@ -47,16 +47,15 @@ client = openai.OpenAI(
 def extract_text_from_image(image, image_id="image"):
     print(f"🔹 Processing image: {image_id}")
     print(f"🔹 Memory before processing: {psutil.virtual_memory().percent}%")
-    # Return dummy text to test pipeline
-    text = "Name: Trixie Kate Espino, What: Ex GirlFriend"
+    text = pytesseract.image_to_string(image)
     print(f"🔹 Memory after processing: {psutil.virtual_memory().percent}%")
-    return text
+    return text.strip()
 
 # Process with AI
 def process_with_ai(extracted_text, model_prompt=None):
     default_prompt = (
         "Convert this text to a JSON array with objects containing key-value pairs "
-        "{Name,What}. "
+        "{transact_code,arp_no,pin,owner}. "
         "Return only the JSON array."
     )
     system_prompt = model_prompt if model_prompt else default_prompt

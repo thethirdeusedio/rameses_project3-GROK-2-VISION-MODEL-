@@ -5,4 +5,3 @@ pdf2image
 pillow
 psutil
 python-multipart
-re

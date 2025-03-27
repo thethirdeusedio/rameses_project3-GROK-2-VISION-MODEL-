@@ -4,11 +4,13 @@ import json
 import signal
 import sys
 import psutil
+import re
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pdf2image import convert_from_bytes
 from PIL import Image
+
 
 app = FastAPI()
 

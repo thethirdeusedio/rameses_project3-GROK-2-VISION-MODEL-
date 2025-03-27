@@ -47,7 +47,7 @@ def extract_text_from_image(image, image_id="image"):
     print(f"🔹 Processing image: {image_id}")
     print(f"🔹 Memory before processing: {psutil.virtual_memory().percent}%")
     # Return dummy text to test pipeline
-    text = "transaction_code: ABC123 arp_no: 456 pin: 789 owner: John Doe survey_no: 101 lot_no: 202 no_or_street: Main St brgy: Barangay 1 municipality: City province: Province"
+    text = "transaction_code: ABC123 arp_no: 456 pin: 789 owner: Khen Kevin Pogi kaayo survey_no: 101 lot_no: 202 no_or_street: Main St brgy: Barangay 1 municipality: City province: Province"
     print(f"🔹 Memory after processing: {psutil.virtual_memory().percent}%")
     return text
 

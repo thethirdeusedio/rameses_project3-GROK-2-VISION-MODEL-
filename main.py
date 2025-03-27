@@ -32,8 +32,8 @@ if not OPENROUTER_API_KEY:
 
 # Initialize OpenRouter Client
 client = openai.OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=OPENROUTER_API_KEY
+    api_key=OPENROUTER_API_KEY,
+    base_url="https://openrouter.ai/api/v1"
 )
 
 # Preprocess image (no save to disk for Render)
@@ -80,7 +80,7 @@ def extract_and_process_text(image, image_id="image", model_prompt=None):
 
         default_prompt = (
             "Extract all text from the image as raw text. Then, convert this raw text to a JSON array with objects "
-            "containing {transaction_code,arp_no,pin,owner_name,address,title_no,lot_no,td_arp_no,land_ref_owner}. "
+            "containing {name,age,status}. "
             "Return the response in this format: ```raw\n<raw_text>\n```\n```json\n<json_array>\n```"
         )
         system_prompt = model_prompt if model_prompt else default_prompt
